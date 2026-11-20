@@ -1,13 +1,13 @@
 {
   "k": 5,
   "recall_at_k": 0.7,
-  "mrr": 0.37,
+  "mrr": 0.42000000000000004,
   "questions": [
     {
       "id": "q1",
       "rank": null,
       "top1_file": "sql-performance-tuning.md",
-      "top1_section": "Adaptive Query Execution"
+      "top1_section": "Coalescing Post Shuffle Partitions"
     },
     {
       "id": "q2",
@@ -17,9 +17,9 @@
     },
     {
       "id": "q3",
-      "rank": 2,
+      "rank": 1,
       "top1_file": "sql-performance-tuning.md",
-      "top1_section": "Adaptive Query Execution"
+      "top1_section": "Optimizing Skew Join"
     },
     {
       "id": "q4",
@@ -49,7 +49,7 @@
       "id": "q8",
       "rank": 4,
       "top1_file": "rdd-programming-guide.md",
-      "top1_section": "Wrong: Don't do this!!"
+      "top1_section": "Resilient Distributed Datasets (RDDs)"
     },
     {
       "id": "q9",

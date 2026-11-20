@@ -64,3 +64,27 @@ def test_long_section_is_split():
     assert all(len(c.text) <= 2000 for c in long_pieces)
     assert all(c.file == "example.md" for c in long_pieces)
     assert all(c.section == "Long Section" for c in long_pieces)
+
+
+def test_hash_comments_inside_highlight_are_not_headings():
+    source = """\
+## Caching
+
+Before the example.
+
+{% highlight python %}
+# Wrong: Don't do this!!
+print(rdd.map(lambda x: hdfs.put(x)))
+{% endhighlight %}
+
+## After
+
+Done.
+"""
+    chunks = chunk_markdown("rdd-programming-guide.md", source, max_chars=2000)
+    sections = [c.section for c in chunks]
+    assert sections == ["Caching", "After"]
+    assert "Wrong: Don't do this!!" not in sections
+    caching = next(c for c in chunks if c.section == "Caching")
+    assert "# Wrong: Don't do this!!" in caching.text
+    assert "print(rdd.map" in caching.text

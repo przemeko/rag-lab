@@ -95,7 +95,7 @@ def print_table(summary: dict) -> None:
         print(f"{row['id']:<6} {rank_s:<6} {top}")
     print("-" * 72)
     print(f"recall@{summary['k']}: {summary['recall_at_k']:.3f}")
-    print(f"MRR:        {summary['mrr']:.3f}")
+    print(f"MRR@{summary['k']}:     {summary['mrr']:.3f}")
 
 
 def main() -> None:

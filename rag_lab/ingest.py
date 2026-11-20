@@ -16,6 +16,13 @@ FRONT_MATTER_RE = re.compile(r"^---\s*\n.*?\n---\s*\n", re.DOTALL)
 LIQUID_TAG_RE = re.compile(r"\{%.*?%\}", re.DOTALL)
 # Spark guides use #, ##, and ### for real sections (not only ## / ###).
 HEADING_RE = re.compile(r"^(#{1,3})\s+(.+?)\s*$", re.MULTILINE)
+# Code blocks where "#" is a comment, not a Markdown heading.
+HIGHLIGHT_BLOCK_RE = re.compile(
+    r"\{%\s*highlight\b.*?%\}.*?\{%\s*endhighlight\s*%\}",
+    re.DOTALL | re.IGNORECASE,
+)
+FENCED_CODE_RE = re.compile(r"```.*?```", re.DOTALL)
+
 
 @dataclass
 class Chunk:
@@ -24,11 +31,28 @@ class Chunk:
     text: str
 
 
+def strip_front_matter(text: str) -> str:
+    return FRONT_MATTER_RE.sub("", text, count=1)
+
+
+def strip_liquid_tags(text: str) -> str:
+    return LIQUID_TAG_RE.sub("", text)
+
+
 def strip_jekyll(text: str) -> str:
     """Remove Jekyll front matter and Liquid tags."""
-    text = FRONT_MATTER_RE.sub("", text, count=1)
-    text = LIQUID_TAG_RE.sub("", text)
-    return text
+    return strip_liquid_tags(strip_front_matter(text))
+
+
+def _mask_code_blocks(text: str) -> str:
+    """Blank out code blocks (same length) so "#" comments are not seen as headings."""
+    chars = list(text)
+    for pattern in (HIGHLIGHT_BLOCK_RE, FENCED_CODE_RE):
+        for match in pattern.finditer(text):
+            for i in range(match.start(), match.end()):
+                if chars[i] != "\n":
+                    chars[i] = " "
+    return "".join(chars)
 
 
 def _split_long(text: str, max_chars: int = MAX_CHUNK_CHARS) -> list[str]:
@@ -57,8 +81,9 @@ def _split_long(text: str, max_chars: int = MAX_CHUNK_CHARS) -> list[str]:
 
 def chunk_markdown(filename: str, source: str, max_chars: int = MAX_CHUNK_CHARS) -> list[Chunk]:
     """Split Markdown into # / ## / ### sections, then cap long sections."""
-    text = strip_jekyll(source)
-    matches = list(HEADING_RE.finditer(text))
+    # Keep highlight/fence delimiters until headings are found, then strip Liquid tags.
+    text = strip_front_matter(source)
+    matches = list(HEADING_RE.finditer(_mask_code_blocks(text)))
     if not matches:
         return []
 
@@ -72,7 +97,7 @@ def chunk_markdown(filename: str, source: str, max_chars: int = MAX_CHUNK_CHARS)
             if len(later.group(1)) <= level:
                 end = later.start()
                 break
-        body = text[start:end].strip()
+        body = strip_liquid_tags(text[start:end]).strip()
         for piece in _split_long(body, max_chars=max_chars):
             chunks.append(Chunk(file=filename, section=section, text=piece))
     return chunks

@@ -16,6 +16,10 @@ dev = [
     "pytest",
     "ruff",
 ]
+notebook = [
+    "ipykernel",
+    "jupyter",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -1,6 +1,9 @@
 # Data artifacts (docs checkout, SQLite, embeddings)
 data/
 
+# Local Jupyter notebooks
+notebooks/
+
 # Python
 __pycache__/
 *.py[cod]

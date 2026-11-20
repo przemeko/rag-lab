@@ -39,6 +39,12 @@ uv run python -m rag_lab.answer "What does spark.sql.adaptive.skewJoin.enabled d
 make check    # ruff + pytest (no model downloads, no Ollama)
 ```
 
+## Notebooks
+
+```bash
+make notebook   # Jupyter Notebook with cwd notebooks/ (gitignored)
+```
+
 ## Layout
 
 | Path | Role |
@@ -50,6 +56,7 @@ make check    # ruff + pytest (no model downloads, no Ollama)
 | `rag_lab/evaluate.py` | recall@5 / MRR@5 |
 | `eval/questions.yaml` | fixed evaluation set |
 | `data/` | gitignored docs, SQLite, embeddings |
+| `notebooks/` | gitignored local Jupyter notebooks |
 
 Pinned Apache Spark commit: see `SPARK_COMMIT` in `rag_lab/paths.py`
 (currently the `v3.5.4` tag).

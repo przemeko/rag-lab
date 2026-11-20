@@ -1,7 +1,7 @@
-.PHONY: install ingest embed eval check
+.PHONY: install ingest embed eval check notebook
 
 install:
-	uv sync --group dev
+	uv sync --group dev --group notebook
 
 ingest:
 	uv run python -m rag_lab.ingest
@@ -15,3 +15,6 @@ eval:
 check:
 	uv run ruff check .
 	uv run pytest
+
+notebook:
+	uv run jupyter notebook --notebook-dir=notebooks

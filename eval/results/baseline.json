@@ -1,0 +1,67 @@
+{
+  "k": 5,
+  "recall_at_k": 0.7,
+  "mrr": 0.42000000000000004,
+  "questions": [
+    {
+      "id": "q1",
+      "rank": null,
+      "top1_file": "sql-performance-tuning.md",
+      "top1_section": "Coalescing Post Shuffle Partitions"
+    },
+    {
+      "id": "q2",
+      "rank": 1,
+      "top1_file": "sql-performance-tuning.md",
+      "top1_section": "Other Configuration Options"
+    },
+    {
+      "id": "q3",
+      "rank": 1,
+      "top1_file": "sql-performance-tuning.md",
+      "top1_section": "Optimizing Skew Join"
+    },
+    {
+      "id": "q4",
+      "rank": 4,
+      "top1_file": "sql-ref-syntax-qry-select-hints.md",
+      "top1_section": "Partitioning Hints"
+    },
+    {
+      "id": "q5",
+      "rank": 2,
+      "top1_file": "monitoring.md",
+      "top1_section": "Spark History Server Configuration Options"
+    },
+    {
+      "id": "q6",
+      "rank": null,
+      "top1_file": "web-ui.md",
+      "top1_section": "SQL metrics"
+    },
+    {
+      "id": "q7",
+      "rank": null,
+      "top1_file": "configuration.md",
+      "top1_section": "Scheduling"
+    },
+    {
+      "id": "q8",
+      "rank": 4,
+      "top1_file": "rdd-programming-guide.md",
+      "top1_section": "Resilient Distributed Datasets (RDDs)"
+    },
+    {
+      "id": "q9",
+      "rank": 1,
+      "top1_file": "submitting-applications.md",
+      "top1_section": "Launching Applications with spark-submit"
+    },
+    {
+      "id": "q10",
+      "rank": 5,
+      "top1_file": "spark-standalone.md",
+      "top1_section": "Standby Masters with ZooKeeper"
+    }
+  ]
+}

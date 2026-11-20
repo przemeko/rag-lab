@@ -1,0 +1,22 @@
+# Data artifacts (docs checkout, SQLite, embeddings)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+*.egg
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Secrets / env
+.env
+.env.*

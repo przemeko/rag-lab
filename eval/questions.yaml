@@ -1,0 +1,59 @@
+questions:
+  - id: q1
+    question: >-
+      What is the default value of spark.sql.shuffle.partitions and when should I change it?
+    expected:
+      # Spark 3.5.4 has no "Tuning Partitions" heading; configs live here.
+      - {file: sql-performance-tuning.md, section: Other Configuration Options}
+
+  - id: q2
+    question: What does spark.sql.files.maxPartitionBytes control?
+    expected:
+      - {file: sql-performance-tuning.md, section: Other Configuration Options}
+
+  - id: q3
+    question: What does spark.sql.adaptive.skewJoin.enabled do?
+    expected:
+      - {file: sql-performance-tuning.md, section: Optimizing Skew Join}
+
+  - id: q4
+    question: What is the difference between repartition() and coalesce()?
+    expected:
+      - {file: rdd-programming-guide.md, section: Transformations}
+      - {file: rdd-programming-guide.md, section: Shuffle operations}
+
+  - id: q5
+    question: What does spark.history.fs.logDirectory configure in the history server?
+    expected:
+      - {file: monitoring.md, section: Viewing After the Fact}
+
+  - id: q6
+    question: My job writes thousands of tiny output files. How can I reduce their number?
+    expected:
+      - {file: sql-performance-tuning.md, section: Coalesce Hints}
+      - {file: sql-performance-tuning.md, section: Coalescing Post Shuffle Partitions}
+
+  - id: q7
+    question: >-
+      One task in a stage runs much longer than all the others. Why, and how can Spark handle it automatically?
+    expected:
+      - {file: sql-performance-tuning.md, section: Optimizing Skew Join}
+      # Upstream typo in Spark 3.5.4 docs: "Spliting" (one t).
+      - {file: sql-performance-tuning.md, section: Spliting skewed shuffle partitions}
+
+  - id: q8
+    question: >-
+      When is it worth keeping a DataFrame in memory between actions, and what does it cost?
+    expected:
+      - {file: sql-performance-tuning.md, section: Caching Data}
+      - {file: rdd-programming-guide.md, section: RDD Persistence}
+
+  - id: q9
+    question: Where does the driver run when I submit a job to a cluster, and how do I choose?
+    expected:
+      - {file: submitting-applications.md, section: Launching Applications with spark-submit}
+
+  - id: q10
+    question: Why do workers fail to connect to the master in a standalone cluster?
+    expected:
+      - {file: spark-standalone.md, section: Cluster Launch Scripts}

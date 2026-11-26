@@ -1,8 +1,9 @@
-"""Evaluate dense, BM25, and hybrid retrieval on eval/questions.yaml."""
+"""Evaluate dense, BM25, hybrid, and hybrid+rerank on eval/questions.yaml."""
 
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import yaml
@@ -85,29 +86,57 @@ def _method_summary(
     }
 
 
+def _mean_latency_ms(questions: list[dict], method: Method, k: int) -> float:
+    """Mean wall time (ms) per question for retrieve(..., method=...)."""
+    from rag_lab.retrieve import retrieve
+
+    total = 0.0
+    for q in questions:
+        start = time.perf_counter()
+        retrieve(q["question"], k=k, method=method)
+        total += time.perf_counter() - start
+    return (total / len(questions)) * 1000.0 if questions else 0.0
+
+
 def run_eval(k: int = DEFAULT_TOP_K) -> dict:
-    """Run dense, bm25, and hybrid; return a comparison summary."""
+    """Run all retrieval methods; return comparison summary with latencies."""
+    from rag_lab.retrieve import cross_encoder_device, retrieve
+
     questions = load_questions()
+
+    # Warmup: load MiniLM, embeddings, and the cross-encoder once.
+    if questions:
+        retrieve(questions[0]["question"], k=k, method="hybrid_rerank")
+    device = cross_encoder_device()
+
     by_method: dict[str, dict] = {}
     for method in RETRIEVAL_METHODS:
         by_method[method] = _method_summary(questions, method, k)  # type: ignore[arg-type]
 
+    latency_ms = {
+        "hybrid": _mean_latency_ms(questions, "hybrid", k),
+        "hybrid_rerank": _mean_latency_ms(questions, "hybrid_rerank", k),
+    }
+
     comparison_rows: list[dict] = []
     for i, q in enumerate(questions):
-        hybrid_row = by_method["hybrid"]["questions"][i]
+        rerank_row = by_method["hybrid_rerank"]["questions"][i]
         comparison_rows.append(
             {
                 "id": q["id"],
                 "dense_rank": by_method["dense"]["questions"][i]["rank"],
                 "bm25_rank": by_method["bm25"]["questions"][i]["rank"],
-                "hybrid_rank": hybrid_row["rank"],
-                "hybrid_top1_file": hybrid_row["top1_file"],
-                "hybrid_top1_section": hybrid_row["top1_section"],
+                "hybrid_rank": by_method["hybrid"]["questions"][i]["rank"],
+                "hybrid_rerank_rank": rerank_row["rank"],
+                "hybrid_rerank_top1_file": rerank_row["top1_file"],
+                "hybrid_rerank_top1_section": rerank_row["top1_section"],
             }
         )
 
     return {
         "k": k,
+        "device": device,
+        "latency_ms": latency_ms,
         "methods": by_method,
         "questions": comparison_rows,
     }
@@ -119,13 +148,14 @@ def _rank_cell(rank: int | None) -> str:
 
 def print_table(summary: dict) -> None:
     print(
-        f"{'id':<6} {'dense':<6} {'bm25':<6} {'hybrid':<7} hybrid top-1"
+        f"{'id':<6} {'dense':<6} {'bm25':<6} {'hybrid':<7} "
+        f"{'rerank':<7} hybrid_rerank top-1"
     )
-    print("-" * 88)
+    print("-" * 100)
     for row in summary["questions"]:
         top = (
-            f"{row['hybrid_top1_file']} / {row['hybrid_top1_section']}"
-            if row["hybrid_top1_file"]
+            f"{row['hybrid_rerank_top1_file']} / {row['hybrid_rerank_top1_section']}"
+            if row["hybrid_rerank_top1_file"]
             else "-"
         )
         print(
@@ -133,16 +163,23 @@ def print_table(summary: dict) -> None:
             f"{_rank_cell(row['dense_rank']):<6} "
             f"{_rank_cell(row['bm25_rank']):<6} "
             f"{_rank_cell(row['hybrid_rank']):<7} "
+            f"{_rank_cell(row['hybrid_rerank_rank']):<7} "
             f"{top}"
         )
-    print("-" * 88)
+    print("-" * 100)
     k = summary["k"]
     for method in RETRIEVAL_METHODS:
         m = summary["methods"][method]
         print(
-            f"{method:<7} recall@{k}: {m['recall_at_k']:.3f}  "
+            f"{method:<14} recall@{k}: {m['recall_at_k']:.3f}  "
             f"MRR@{k}: {m['mrr']:.3f}"
         )
+    latency = summary["latency_ms"]
+    print(
+        f"\nmean latency (ms/q)  hybrid: {latency['hybrid']:.1f}  "
+        f"hybrid_rerank: {latency['hybrid_rerank']:.1f}  "
+        f"device: {summary['device']}"
+    )
 
 
 def main() -> None:
@@ -150,7 +187,7 @@ def main() -> None:
     print_table(summary)
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    out = RESULTS_DIR / "hybrid.json"
+    out = RESULTS_DIR / "rerank.json"
     out.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     print(f"\nWrote {out}")
 

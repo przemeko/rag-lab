@@ -1,9 +1,10 @@
-"""Retrieve top-k chunks: dense (MiniLM), BM25 (FTS5), or hybrid (RRF)."""
+"""Retrieve top-k chunks: dense, BM25, hybrid (RRF), or hybrid + cross-encoder rerank."""
 
 from __future__ import annotations
 
 import re
 import sqlite3
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Literal
@@ -12,6 +13,7 @@ import numpy as np
 
 from rag_lab.paths import (
     CANDIDATE_N,
+    CROSS_ENCODER_MODEL,
     DB_PATH,
     DEFAULT_TOP_K,
     EMBEDDING_MODEL,
@@ -19,7 +21,10 @@ from rag_lab.paths import (
     RRF_K,
 )
 
-Method = Literal["dense", "bm25", "hybrid"]
+Method = Literal["dense", "bm25", "hybrid", "hybrid_rerank"]
+
+# Scorer: CrossEncoder-like (.predict) or callable(pairs) -> scores.
+RerankScorer = Callable[[Sequence[tuple[str, str]]], Sequence[float]] | Any
 
 # Same character class as FTS5 tokenchars '._-' plus alphanumerics.
 _FTS_TOKEN_RE = re.compile(r"[A-Za-z0-9._-]+")
@@ -41,6 +46,37 @@ def _model() -> Any:
     from sentence_transformers import SentenceTransformer
 
     return SentenceTransformer(EMBEDDING_MODEL)
+
+
+def _torch_device() -> str:
+    import torch
+
+    if torch.cuda.is_available():
+        return "cuda"
+    if getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
+@lru_cache(maxsize=1)
+def _cross_encoder() -> Any:
+    from sentence_transformers import CrossEncoder
+
+    return CrossEncoder(CROSS_ENCODER_MODEL, device=_torch_device())
+
+
+def cross_encoder_device() -> str:
+    """Device used by the cross-encoder (loads the model on first call)."""
+    model = _cross_encoder()
+    device = getattr(model, "device", None)
+    if device is not None:
+        text = str(device)
+        if text.startswith("cuda"):
+            return "cuda"
+        if text.startswith("mps"):
+            return "mps"
+        return "cpu"
+    return _torch_device()
 
 
 @lru_cache(maxsize=1)
@@ -111,6 +147,49 @@ def reciprocal_rank_fusion(
 
 def _candidate_n(k: int) -> int:
     return max(CANDIDATE_N, k)
+
+
+def _score_pairs(
+    scorer: RerankScorer,
+    pairs: Sequence[tuple[str, str]],
+) -> Sequence[float]:
+    if hasattr(scorer, "predict"):
+        return scorer.predict(pairs)
+    return scorer(pairs)
+
+
+def rerank_chunks(
+    question: str,
+    candidates: list[RetrievedChunk],
+    k: int,
+    *,
+    scorer: RerankScorer | None = None,
+) -> list[RetrievedChunk]:
+    """Rerank candidates by cross-encoder score; return top-k.
+
+    Scores pairs ``(question, chunk.text)``. Tied scores keep the incoming
+    hybrid order (stable sort). Does not add or drop ids before the k cut.
+    """
+    if not candidates:
+        return []
+    if scorer is None:
+        scorer = _cross_encoder()
+
+    pairs = [(question, c.text) for c in candidates]
+    raw_scores = _score_pairs(scorer, pairs)
+    scored = [
+        RetrievedChunk(
+            id=c.id,
+            file=c.file,
+            section=c.section,
+            text=c.text,
+            score=float(raw_scores[i]),
+        )
+        for i, c in enumerate(candidates)
+    ]
+    # Stable: equal scores keep incoming candidate order.
+    scored.sort(key=lambda c: c.score, reverse=True)
+    return scored[:k]
 
 
 def retrieve_dense(question: str, k: int = DEFAULT_TOP_K) -> list[RetrievedChunk]:
@@ -215,16 +294,30 @@ def retrieve_hybrid(question: str, k: int = DEFAULT_TOP_K) -> list[RetrievedChun
     return results
 
 
+def retrieve_hybrid_rerank(
+    question: str,
+    k: int = DEFAULT_TOP_K,
+    *,
+    scorer: RerankScorer | None = None,
+) -> list[RetrievedChunk]:
+    """Hybrid top-N candidates, then cross-encoder rerank to top-k."""
+    n = _candidate_n(k)
+    candidates = retrieve_hybrid(question, k=n)
+    return rerank_chunks(question, candidates, k=k, scorer=scorer)
+
+
 def retrieve(
     question: str,
     k: int = DEFAULT_TOP_K,
-    method: Method = "hybrid",
+    method: Method = "hybrid_rerank",
 ) -> list[RetrievedChunk]:
-    """Return top-k chunks using dense, bm25, or hybrid (RRF) retrieval."""
+    """Return top-k chunks using dense, bm25, hybrid, or hybrid_rerank."""
     if method == "dense":
         return retrieve_dense(question, k=k)
     if method == "bm25":
         return retrieve_bm25(question, k=k)
     if method == "hybrid":
         return retrieve_hybrid(question, k=k)
+    if method == "hybrid_rerank":
+        return retrieve_hybrid_rerank(question, k=k)
     raise ValueError(f"Unknown retrieval method: {method!r}")

@@ -132,6 +132,35 @@ def download_docs(docs_dir: Path = DOCS_DIR, commit: str = SPARK_COMMIT) -> Path
     return docs_dir
 
 
+def _require_fts5(conn: sqlite3.Connection) -> None:
+    """Fail clearly if this SQLite build has no FTS5."""
+    try:
+        conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS _fts5_probe USING fts5(x)")
+        conn.execute("DROP TABLE IF EXISTS _fts5_probe")
+    except sqlite3.OperationalError as exc:
+        raise RuntimeError(
+            "SQLite FTS5 is required for BM25 hybrid search but is unavailable "
+            f"in this Python build ({exc})."
+        ) from exc
+
+
+def build_fts_index(conn: sqlite3.Connection) -> None:
+    """Create chunks_fts over chunks.text (unicode61 + dotted/hyphen identifiers)."""
+    _require_fts5(conn)
+    conn.execute("DROP TABLE IF EXISTS chunks_fts")
+    conn.execute(
+        """
+        CREATE VIRTUAL TABLE chunks_fts USING fts5(
+            text,
+            content='chunks',
+            content_rowid='id',
+            tokenize="unicode61 tokenchars '._-'"
+        )
+        """
+    )
+    conn.execute("INSERT INTO chunks_fts(rowid, text) SELECT id, text FROM chunks")
+
+
 def write_chunks(chunks: list[Chunk], db_path: Path = DB_PATH) -> int:
     """Replace the chunks table with the given rows. Returns row count."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -154,6 +183,7 @@ def write_chunks(chunks: list[Chunk], db_path: Path = DB_PATH) -> int:
             "INSERT INTO chunks (file, section, text) VALUES (?, ?, ?)",
             [(c.file, c.section, c.text) for c in chunks],
         )
+        build_fts_index(conn)
         conn.commit()
         return conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
     finally:

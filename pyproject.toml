@@ -1,7 +1,7 @@
 [project]
 name = "rag-lab"
 version = "0.1.0"
-description = "Naive RAG baseline over the Apache Spark docs"
+description = "RAG over Apache Spark docs: dense, BM25, and hybrid (RRF) retrieval"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

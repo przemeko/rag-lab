@@ -42,8 +42,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--method",
         choices=RETRIEVAL_METHODS,
-        default="hybrid",
-        help="Retrieval method (default: hybrid)",
+        default="hybrid_rerank",
+        help="Retrieval method (default: hybrid_rerank)",
     )
     args = parser.parse_args(argv)
 

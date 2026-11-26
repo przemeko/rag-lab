@@ -7,7 +7,7 @@ import sys
 
 import requests
 
-from rag_lab.paths import DEFAULT_TOP_K, OLLAMA_MODEL, OLLAMA_URL
+from rag_lab.paths import DEFAULT_TOP_K, OLLAMA_MODEL, OLLAMA_URL, RETRIEVAL_METHODS
 from rag_lab.retrieve import retrieve
 
 
@@ -36,13 +36,19 @@ def ask_ollama(prompt: str, model: str = OLLAMA_MODEL, url: str = OLLAMA_URL) ->
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Answer a Spark docs question with naive RAG.")
+    parser = argparse.ArgumentParser(description="Answer a Spark docs question with RAG.")
     parser.add_argument("question", help="Question to answer")
     parser.add_argument("-k", type=int, default=DEFAULT_TOP_K, help="Number of chunks to retrieve")
+    parser.add_argument(
+        "--method",
+        choices=RETRIEVAL_METHODS,
+        default="hybrid",
+        help="Retrieval method (default: hybrid)",
+    )
     args = parser.parse_args(argv)
 
-    hits = retrieve(args.question, k=args.k)
-    print("Retrieved chunks:", flush=True)
+    hits = retrieve(args.question, k=args.k, method=args.method)
+    print(f"Retrieved chunks ({args.method}):", flush=True)
     for i, hit in enumerate(hits, start=1):
         print(f"  {i}. [{hit.score:.3f}] {hit.file} / {hit.section}", flush=True)
 
